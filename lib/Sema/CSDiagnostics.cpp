@@ -6054,30 +6054,51 @@ bool OutOfOrderArgumentFailure::diagnoseAsError() {
   if (!args)
     return false;
 
+  // Validate that the argument indices are within bounds
+  if (ArgIdx >= args->size() || PrevArgIdx >= args->size())
+    return false;
+
   Identifier first = args->getLabel(ArgIdx);
   Identifier second = args->getLabel(PrevArgIdx);
 
   // Build a mapping from arguments to parameters.
   SmallVector<unsigned, 4> argBindings(args->size());
   for (unsigned paramIdx = 0; paramIdx != Bindings.size(); ++paramIdx) {
-    for (auto argIdx : Bindings[paramIdx])
+    for (auto argIdx : Bindings[paramIdx]) {
+      if (argIdx >= args->size())
+        return false;
       argBindings[argIdx] = paramIdx;
+    }
   }
 
   auto argRange = [&](unsigned argIdx, Identifier label) -> SourceRange {
-    auto range = args->getExpr(argIdx)->getSourceRange();
+    auto *expr = args->getExpr(argIdx);
+    if (!expr)
+      return SourceRange();
+    
+    auto range = expr->getSourceRange();
     if (!label.empty())
       range.Start = args->getLabelLoc(argIdx);
 
+    if (argIdx >= argBindings.size())
+      return range;
+    
     unsigned paramIdx = argBindings[argIdx];
-    if (Bindings[paramIdx].size() > 1)
-      range.End = args->getExpr(Bindings[paramIdx].back())->getEndLoc();
+    if (paramIdx < Bindings.size() && Bindings[paramIdx].size() > 1) {
+      auto *endExpr = args->getExpr(Bindings[paramIdx].back());
+      if (endExpr)
+        range.End = endExpr->getEndLoc();
+    }
 
     return range;
   };
 
   auto firstRange = argRange(ArgIdx, first);
   auto secondRange = argRange(PrevArgIdx, second);
+
+  // Check if ranges are valid (not default-constructed empty ranges)
+  if (!firstRange.Start.isValid() || !secondRange.Start.isValid())
+    return false;
 
   SourceLoc diagLoc = firstRange.Start;
 
@@ -6108,7 +6129,10 @@ bool OutOfOrderArgumentFailure::diagnoseAsError() {
     } else {
       // For all other arguments, start is the next token past
       // the previous argument.
-      removalStartLoc = args->getExpr(ArgIdx - 1)->getEndLoc();
+      auto *prevExpr = args->getExpr(ArgIdx - 1);
+      if (!prevExpr)
+        return;
+      removalStartLoc = prevExpr->getEndLoc();
     }
 
     SourceRange removalRange{Lexer::getLocForEndOfToken(SM, removalStartLoc),
