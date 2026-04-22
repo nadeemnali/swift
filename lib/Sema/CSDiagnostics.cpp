@@ -6054,10 +6054,6 @@ bool OutOfOrderArgumentFailure::diagnoseAsError() {
   if (!args)
     return false;
 
-  // Validate that the argument indices are within bounds
-  if (ArgIdx >= args->size() || PrevArgIdx >= args->size())
-    return false;
-
   Identifier first = args->getLabel(ArgIdx);
   Identifier second = args->getLabel(PrevArgIdx);
 
@@ -6065,8 +6061,6 @@ bool OutOfOrderArgumentFailure::diagnoseAsError() {
   SmallVector<unsigned, 4> argBindings(args->size());
   for (unsigned paramIdx = 0; paramIdx != Bindings.size(); ++paramIdx) {
     for (auto argIdx : Bindings[paramIdx]) {
-      if (argIdx >= args->size())
-        return false;
       argBindings[argIdx] = paramIdx;
     }
   }

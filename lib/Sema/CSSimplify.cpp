@@ -1224,6 +1224,18 @@ public:
         return false;
       }
 
+      // Validate argument indices are within bounds before creating fix
+      if (argIdx >= Arguments.size() || prevArgIdx >= Arguments.size())
+        return false;
+
+      // Validate all binding indices are within bounds
+      for (const auto &paramBinding : bindings) {
+        for (auto bindingArgIdx : paramBinding) {
+          if (bindingArgIdx >= Arguments.size())
+            return false;
+        }
+      }
+
       auto *fix = MoveOutOfOrderArgument::create(
           CS, argIdx, prevArgIdx, bindings, CS.getConstraintLocator(Locator));
       return CS.recordFix(fix);
@@ -5247,9 +5259,13 @@ static bool repairOutOfOrderArgumentsInBinaryFunction(
 
     result = matchArgToParam(argType, paramType, otherArgIdx);
     if (result.isSuccess()) {
-      conversionsOrFixes.push_back(MoveOutOfOrderArgument::create(
-          cs, otherArgIdx, currArgIdx, {{0}, {1}}, parentLoc));
-      return true;
+      // Validate indices are within bounds (defensive check)
+      // For binary operators, we have at most 2 arguments (0 and 1)
+      if (otherArgIdx < 2 && currArgIdx < 2) {
+        conversionsOrFixes.push_back(MoveOutOfOrderArgument::create(
+            cs, otherArgIdx, currArgIdx, {{0}, {1}}, parentLoc));
+        return true;
+      }
     }
   }
 

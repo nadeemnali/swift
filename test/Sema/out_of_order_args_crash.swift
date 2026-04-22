@@ -1,8 +1,8 @@
 // RUN: %target-typecheck-verify-swift
 
-// Test case for issue #87792: Type checker crash in OutOfOrderArgumentFailure::diagnoseAsError()
-// When parsing malformed function arguments, the diagnostic attempted to access out-of-bounds
-// indices without validation, causing a SIGSEGV.
+// Test case for issue #87792: Type checker crash in OutOfOrderArgumentFailure
+// When parsing malformed function arguments, invalid fixes were being created in the solver
+// without validation. This test ensures malformed code produces clear errors instead of SIGSEGV.
 
 // MARK: - Malformed Arguments (Should error, not crash)
 
